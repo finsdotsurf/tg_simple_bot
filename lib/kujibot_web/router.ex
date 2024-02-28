@@ -20,13 +20,16 @@ defmodule KujibotWeb.Router do
   scope "/", KujibotWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    # get "/", PageController, :home
+    live "/", DashboardLive
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", KujibotWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", KujibotWeb do
+    pipe_through :api
+
+    post "/telegram_webhook", TelegramController, :webhook
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:kujibot, :dev_routes) do

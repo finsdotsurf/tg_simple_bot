@@ -1,0 +1,19 @@
+<!-- Telegram Messages Section -->
+<h2>KujiBot Messages</h2>
+<div id="kujibot-messages">
+  <%= if @messages == [] do %>
+    <p>No messages yet.</p>
+  <% else %>
+    <ul>
+      <%= for msg <- @messages do %>
+        <li>
+          <strong>ID:</strong> <%= msg.id %>
+          <br />
+          <strong>Username:</strong> <%= msg.username %>
+          <br />
+          <strong>Message:</strong> <%= msg.text %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>
