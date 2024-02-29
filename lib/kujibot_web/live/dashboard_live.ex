@@ -21,6 +21,7 @@ defmodule KujibotWeb.DashboardLive do
     id = message["message"]["chat"]["id"]
     username = message["message"]["chat"]["username"]
     text = message["message"]["text"]
+    # secret = message["message"]["secret"]
 
     # Construct new map with this information
     simple_message = %{

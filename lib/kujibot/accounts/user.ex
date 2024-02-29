@@ -4,6 +4,7 @@ defmodule Kujibot.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :telegram_user_id, :integer
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :naive_datetime

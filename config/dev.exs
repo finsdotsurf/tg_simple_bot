@@ -2,8 +2,8 @@ import Config
 
 # Configure your database
 config :kujibot, Kujibot.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: System.get_env("PGDB_USER"),
+  password: System.get_env("PGDB_PASSWORD"),
   hostname: "localhost",
   database: "kujibot_dev",
   stacktrace: true,
