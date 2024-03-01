@@ -11,6 +11,43 @@ defmodule Kujibot.Accounts do
   ## Database getters
 
   @doc """
+  Registers or finds a user based on Telegram user ID.
+
+  ## Examples
+
+      iex> register_or_find_user_by_telegram_id(123456789)
+      {:ok, %User{}}
+
+  """
+  def register_or_find_user_by_telegram_id(attrs) do
+    case Repo.get_by(User, telegram_user_id: attrs.telegram_user_id) do
+      nil ->
+        %User{telegram_user_id: attrs.telegram_user_id}
+        |> User.registration_changeset(attrs)
+        |> Repo.insert()
+
+      user ->
+        {:ok, user}
+    end
+  end
+
+  @doc """
+  Authenticates a user based on Telegram user ID.
+
+  This function assumes the user has been previously registered.
+  It could be expanded to automatically register users.
+
+  ## Examples
+
+      iex> authenticate_by_telegram_id(123456789)
+      {:ok, %User{}}
+
+  """
+  def authenticate_by_telegram_id(telegram_user_id) when is_integer(telegram_user_id) do
+    Repo.get_by(User, telegram_user_id: telegram_user_id)
+  end
+
+  @doc """
   Gets a user by email.
 
   ## Examples

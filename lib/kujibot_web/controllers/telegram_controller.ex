@@ -2,43 +2,43 @@ defmodule KujibotWeb.TelegramController do
   use KujibotWeb, :controller
 
   require Logger
+  alias KujibotWeb.Endpoint
 
+  @doc """
+  Handles incoming webhook requests from Telegram.
+  """
   def webhook(conn, params) do
-    # conn
-    # |> KujibotWeb.Plugs.LogHeaders.call(%{})
+    if verify_tg_message(conn) do
+      Logger.info("Secret token matches received token.")
 
-    received_token =
-      Plug.Conn.get_req_header(conn, "x-telegram-bot-api-secret-token") |> List.first()
+      # Broadcast the structured message to the desired topic.
+      Endpoint.broadcast("telegram:messages", "kujibot_message", params)
 
-    secret_token = System.get_env("TG_SECRET_TOKEN")
-
-    if received_token == secret_token do
-      Logger.info("secret token matches recieved token")
-      # ensure message is in a structured format (Map) if it's a JSON string
-      structured_message =
-        case is_map(params) do
-          true -> params
-          false -> parse_json(params)
-        end
-
-      # Now, let us broadcast this structured message to the desired topic
-      KujibotWeb.Endpoint.broadcast("telegram:messages", "kujibot_message", structured_message)
       send_resp(conn, 200, "OK")
     else
-      Logger.info("secret token != recieved token")
-      # Invalid or missing token, reject the request
+      Logger.info("Secret token does not match received token.")
+      # Reject the request if the token is invalid or missing.
       conn
       |> send_resp(401, "Unauthorized")
       |> halt()
     end
   end
 
-  # Helper function to parse JSON string into a Map
-  defp parse_json(message) do
-    case Jason.decode(message) do
-      {:ok, decoded} -> decoded
-      # or handle the error as you see fit
-      {:error, _} -> %{}
-    end
+  @doc """
+  Verifies the Telegram message against the secret token.
+  """
+  defp verify_tg_message(conn) do
+    received_token = get_received_token(conn)
+    secret_token = System.get_env("TG_SECRET_TOKEN")
+
+    received_token == secret_token
+  end
+
+  @doc """
+  Extracts the 'x-telegram-bot-api-secret-token' header from the connection.
+  """
+  defp get_received_token(conn) do
+    Plug.Conn.get_req_header(conn, "x-telegram-bot-api-secret-token")
+    |> List.first()
   end
 end
