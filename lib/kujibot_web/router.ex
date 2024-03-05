@@ -32,7 +32,8 @@ defmodule KujibotWeb.Router do
     tg_secret_path = System.get_env("TG_SECRET_PATH") || "no_secret_path"
 
     # Use string interpolation to include the secret path in the route
-    post "/#{tg_secret_path}/telegram_webhook", TelegramController, :webhook
+    post "/#{tg_secret_path}/telegram_webhook", TelegramController, :index
+    post "/telegram_webhook", TelegramController, :index
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
