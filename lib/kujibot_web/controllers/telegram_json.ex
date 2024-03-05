@@ -111,6 +111,7 @@ defmodule KujibotWeb.TelegramJSON do
         end
 
       {:ok, %HTTPoison.Response{status_code: status_code}} ->
+        # current code not working: [error] Failed to send message. Status code: 400
         Logger.error("Failed to send message. Status code: #{status_code}")
         {:error, :failed_request}
 
