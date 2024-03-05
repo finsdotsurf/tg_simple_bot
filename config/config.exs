@@ -22,6 +22,10 @@ config :kujibot, KujibotWeb.Endpoint,
   pubsub_server: Kujibot.PubSub,
   live_view: [signing_salt: "BVVLdPi3"]
 
+# This tells Tesla which HTTP client adapter to use
+# for making outbound HTTP requests from the server.
+config :tesla, adapter: Tesla.Adapter.Hackney
+
 # Configures the mailer
 #
 # By default it uses the "Local" adapter which stores the emails

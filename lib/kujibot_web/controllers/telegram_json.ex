@@ -3,10 +3,13 @@ defmodule KujibotWeb.TelegramJSON do
   A module for interacting with the Telegram Bot API.
   """
 
-  require Logger
-  alias HTTPoison
+  use Tesla
 
-  @base_url "https://api.telegram.org/bot"
+  plug Tesla.Middleware.BaseUrl, "https://api.telegram.org/"
+  plug Tesla.Middleware.JSON
+  plug Tesla.Middleware.Headers, [{"Content-Type", "application/json"}]
+
+  require Logger
 
   @doc """
   Sends a text message via the Telegram Bot API.
@@ -49,8 +52,19 @@ defmodule KujibotWeb.TelegramJSON do
         instructions to remove reply keyboard or to force a reply from the user.
   -
   """
-  def send_message(chat_id, response_message, bot_token) do
-    url = "#{@base_url}#{bot_token}/sendMessage"
+
+  def send_message(bot_token, chat_id, text, keyboard) do
+    body = %{
+      chat_id: chat_id,
+      text: text,
+      reply_markup: %{keyboard: keyboard, resize_keyboard: true, one_time_keyboard: true}
+    }
+
+    post("/bot#{bot_token}/sendMessage", body)
+  end
+
+  def send_message_prev(chat_id, response_message, bot_token) do
+    url = "base_url/#{bot_token}/sendMessage"
     headers = [{"Content-Type", "application/json"}]
 
     body =

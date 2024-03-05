@@ -57,6 +57,8 @@ defmodule Kujibot.MixProject do
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},
+      {:tesla, "~> 1.8"},
+      {:hackney, "~> 1.20"},
       {:jason, "~> 1.2"},
       {:httpoison, "~> 2.2.1"},
       {:dns_cluster, "~> 0.1.1"},

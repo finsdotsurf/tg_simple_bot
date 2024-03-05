@@ -55,26 +55,45 @@ defmodule KujibotWeb.TelegramController do
 
   # Command execution
   defp execute_command(:start, conn, chat_id) do
-    send_welcome_message(conn, chat_id)
+    bot_token = System.get_env("BOT_TOKEN")
+
+    text =
+      "Hearken, noble traveller, to partake in the grand exchange of Kujira's bustling Dex, thou must first summon a wallet to be forged within the vaults for thy bags. This enchanted repository shall hold thy treasures safe and serve as thy sceptre, commanding the flows of commerce at thy whim. Venture forth to the vaults and let the forging begin!"
+
+    keyboard = [[%{text: "Create Wallet"}, %{text: "Summon Menu"}]]
+
+    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+
+    conn
+    |> put_status(:ok)
+    |> json(%{message: "command complete"})
   end
 
   defp execute_command(:create_wallet, conn, chat_id) do
     # Logic to create a wallet
     response_message = "A new wallet is being forged in the depths of our vaults."
-    send_json_message(conn, chat_id, response_message)
+
+    conn
+    |> put_status(:ok)
+    |> json(%{message: response_message})
   end
 
   defp execute_command(:list_pairs, conn, chat_id) do
     # Logic to list trading pairs
     response_message = "Behold, the pairs available in our domain are many and varied."
-    send_json_message(conn, chat_id, response_message)
+
+    conn
+    |> put_status(:ok)
+    |> json(%{message: response_message})
   end
 
   defp execute_command(:bad_command, conn, chat_id) do
     response_message =
       "Alas, thy command is but a whisper in the void, unheeded by our ancient lore."
 
-    send_error_message(conn, chat_id, response_message)
+    conn
+    |> put_status(:ok)
+    |> json(%{message: response_message})
   end
 
   # Example of sending a welcome message with a custom keyboard
