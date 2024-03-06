@@ -33,34 +33,76 @@ defmodule KujibotWeb.TelegramController do
   end
 
   defp handle_message(conn, details) do
-    with {:ok, chat_id} when is_integer(chat_id) <- Keyword.fetch(details, :chat_id),
-         {:ok, text} <- Keyword.fetch(details, :text),
-         {:ok, command} <- parse_command(text) do
-      execute_command(command, conn, chat_id)
+    with {:ok, chat_id} when is_integer(chat_id) <- Map.fetch(details, :chat_id),
+         {:ok, text} <- Map.fetch(details, :text) do
+      case parse_command(text) do
+        {:ok, command} ->
+          execute_command(command, conn, chat_id)
+      end
     else
       _ ->
         Logger.info("Command not recognized or missing chat_id/text")
-
-        conn
-        # Adjust this status code based on your application's needs
-        |> put_status(:ok)
-        |> json(%{message: "Command not recognized or missing chat_id/text."})
+        Logger.info("Invalid message format")
+        send_error_response(conn, :bad_request)
     end
   end
 
-  defp parse_command("/start"), do: {:ok, :start}
-  defp parse_command("/create"), do: {:ok, :create_wallet}
-  defp parse_command("/create-wallet"), do: {:ok, :create_wallet}
+  defp parse_command("/create"), do: {:ok, :create_wallet_option}
+  defp parse_command("/create-wallet"), do: {:ok, :create_wallet_option}
   defp parse_command("🔮 Forge they new Wallet"), do: {:ok, :forge_new_wallet}
-  defp parse_command("/menu"), do: {:ok, :summon_menu}
-  defp parse_command("🏰 Summon Menu"), do: {:ok, :summon_menu}
+  defp parse_command("📜 List Featured"), do: {:ok, :list_pairs_featured}
   defp parse_command("/list"), do: {:ok, :list_pairs}
   defp parse_command("📜 List Pairs"), do: {:ok, :list_pairs}
-  defp parse_command("📜 List Featured"), do: {:ok, :list_pairs_featured}
+  defp parse_command("/menu"), do: {:ok, :summon_menu}
+  defp parse_command("🔍 Search"), do: {:ok, :search}
+  defp parse_command("/start"), do: {:ok, :start}
+  defp parse_command("🏰 Summon Menu"), do: {:ok, :summon_menu}
   defp parse_command(_), do: {:ok, :bad_command}
 
   # Command execution
-  defp execute_command(:start, conn, chat_id) do
+  defp execute_command(command, conn, chat_id) do
+    Logger.info(command)
+
+    case command do
+      :start ->
+        send_welcome_message(conn, chat_id)
+
+      :create_wallet_option ->
+        # show commands for making new wallet
+
+        # if no wallet yet, explain this is needed to use the bot
+        send_create_wallet_message(conn, chat_id)
+
+      :forge_new_wallet ->
+        # this will allow a new wallet to be created
+        # seed phrase stored as new password field in user db?
+        send_forge_new_wallet_message(conn, chat_id)
+
+      :list_pairs ->
+        # examine text for search and filters or pairs
+        filter = :none
+        send_list_pairs_message(conn, chat_id, filter)
+
+      :list_pairs_featured ->
+        # is this the best way to set a search filter?
+        filter = :featured
+        send_list_pairs_message(conn, chat_id, filter)
+
+      :summon_menu ->
+        # display main menu info and buttons
+        send_summon_menu_message(conn, chat_id)
+
+      :search ->
+        # set up text entry and buttons for search
+        send_search_menu_message(conn, chat_id)
+
+      :bad_command ->
+        # any unmatched messages should land here
+        send_bad_command_message(conn, chat_id)
+    end
+  end
+
+  def send_welcome_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -69,14 +111,12 @@ defmodule KujibotWeb.TelegramController do
     keyboard = [[%{text: "Create Wallet"}, %{text: "Summon Menu"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: "command complete"})
+    send_success_response(conn, text)
   end
 
-  defp execute_command(:create_wallet, conn, chat_id) do
-    # Logic to create a wallet
+  # ... (other command handlers)
+
+  def send_create_wallet_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -85,14 +125,10 @@ defmodule KujibotWeb.TelegramController do
     keyboard = [[%{text: "🔮 Forge they new Wallet"}, %{text: "📜 List Wallets"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
+    send_success_response(conn, text)
   end
 
-  defp execute_command(:forge_new_wallet, conn, chat_id) do
-    # Logic to create a wallet
+  def send_forge_new_wallet_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -103,47 +139,32 @@ defmodule KujibotWeb.TelegramController do
     keyboard = [[%{text: "🔮 Copy Seed Phrase"}, %{text: "📜 List Wallets"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
+    send_success_response(conn, text)
   end
 
-  defp execute_command(:list_pairs, conn, chat_id) do
-    # Logic to list trading pairs
+  def send_list_pairs_message(conn, chat_id, filter) do
     bot_token = System.get_env("BOT_TOKEN")
 
-    text =
-      "Behold to the heart of bags tradeable on the Kujira dex FIN, where all paths converge and from whence all quests may be embarked.
-      List top 5 featured automatically, "
+    case filter do
+      :none ->
+        text =
+          "Behold to the heart of bags tradeable on the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
 
-    keyboard = [[%{text: "🔍 Search"}, %{text: "📜 List Featured"}]]
+        keyboard = [[%{text: "🔍 Search"}, %{text: "📜 List Featured"}]]
+        TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+        send_success_response(conn, text)
 
-    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+      :featured ->
+        text =
+          "The Featured bags of the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
 
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
+        keyboard = [[%{text: "🔍 Search"}, %{text: "🏰 Summon Menu"}]]
+        TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+        send_success_response(conn, text)
+    end
   end
 
-  defp execute_command(:list_pairs_featured, conn, chat_id) do
-    # Logic to list trading pairs
-    bot_token = System.get_env("BOT_TOKEN")
-
-    text =
-      "The Featured bags pairs on Kujira FIN.
-      List featured pairs."
-
-    keyboard = [[%{text: "🔍 Search"}, %{text: "🏰 Summon Menu"}]]
-
-    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
-  end
-
-  defp execute_command(:summon_menu, conn, chat_id) do
+  def send_summon_menu_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -152,13 +173,22 @@ defmodule KujibotWeb.TelegramController do
     keyboard = [[%{text: "🔍 Search"}, %{text: "📜 List Pairs"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
+    send_success_response(conn, text)
   end
 
-  defp execute_command(:bad_command, conn, chat_id) do
+  def send_search_menu_message(conn, chat_id) do
+    bot_token = System.get_env("BOT_TOKEN")
+
+    text =
+      "Let us search for tokens & coins."
+
+    keyboard = [[%{text: "find match"}, %{text: "go back"}]]
+
+    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+    send_success_response(conn, text)
+  end
+
+  def send_bad_command_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -167,49 +197,23 @@ defmodule KujibotWeb.TelegramController do
     keyboard = [[%{text: "🔍 Search"}, %{text: "🏰 Summon Menu"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: text})
+    send_success_response(conn, text)
   end
 
-  # Example of sending a welcome message with a custom keyboard
-  defp send_welcome_message(conn, chat_id) do
-    response_message = "Welcome, noble traveller, to our realm. How may I assist thee today?"
-
-    keyboard = %{
-      inline_keyboard: [
-        %{text: "Pray, inform me of the hours thy establishment doth keep?"},
-        %{text: "I beseech thee, might I track the progress of mine order?"},
-        %{text: "How doth one report an issue most vexing to thy service?"}
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: true
-    }
-
-    bot_token = System.get_env("BOT_TOKEN")
-    TelegramJSON.send_message_with_keyboard(chat_id, response_message, bot_token, keyboard)
-
+  defp send_success_response(conn, message) do
     conn
     |> put_status(:ok)
-    |> json(%{message: response_message})
+    |> json(%{message: message})
   end
 
-  # Example of sending an error message
-  defp send_error_message(conn, chat_id, response_message) do
-    # Here, you can also include a keyboard similar to the send_welcome_message function
-    bot_token = System.get_env("BOT_TOKEN")
-    TelegramJSON.send_message(chat_id, response_message, bot_token)
-
-    conn
-    |> put_status(:ok)
-    |> json(%{message: response_message})
-  end
-
-  defp send_json_message(conn, chat_id, response_message) do
-    Logger.info("Sending Telegram message to chat_id #{chat_id}")
-    bot_token = System.get_env("BOT_TOKEN")
-    TelegramJSON.send_message(chat_id, response_message, bot_token)
+  defp send_error_response(conn, error) do
+    response_message =
+      case error do
+        # :unauthorized -> "Unauthorized"
+        # :unprocessable_entity -> "Command not recognized or missing chat_id/text"
+        :bad_request ->
+          "Failed to extract message details"
+      end
 
     conn
     |> put_status(:ok)
