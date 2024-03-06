@@ -47,6 +47,10 @@ defmodule KujibotWeb.TelegramController do
     end
   end
 
+  # This code and on down should be put into:
+  #   kujibot/telegram/parse_commands.ex
+  #   kujibot/telegram/execute_commands.ex
+
   defp parse_command("/create"), do: {:ok, :create_wallet_option}
   defp parse_command("/create-wallet"), do: {:ok, :create_wallet_option}
   defp parse_command("🔮 Forge they new Wallet"), do: {:ok, :forge_new_wallet}
