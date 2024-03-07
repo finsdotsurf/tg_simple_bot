@@ -6,6 +6,7 @@ defmodule KujibotWeb.TelegramController do
   alias KujibotWeb.TelegramJSON
   alias Kujibot.Telegram.MessageAccessor
   alias Kujibot.Telegram.AuthenticateUser
+  alias Kujibot.Accounts
 
   require Logger
 
@@ -37,7 +38,7 @@ defmodule KujibotWeb.TelegramController do
          {:ok, text} <- Map.fetch(details, :text) do
       case parse_command(text) do
         {:ok, command} ->
-          execute_command(command, conn, chat_id)
+          execute_command(command, conn, chat_id, details)
       end
     else
       _ ->
@@ -53,6 +54,7 @@ defmodule KujibotWeb.TelegramController do
 
   defp parse_command("/create"), do: {:ok, :create_wallet_option}
   defp parse_command("/create-wallet"), do: {:ok, :create_wallet_option}
+  defp parse_command("Create Wallet"), do: {:ok, :create_wallet_option}
   defp parse_command("🔮 Forge they new Wallet"), do: {:ok, :forge_new_wallet}
   defp parse_command("📜 List Featured"), do: {:ok, :list_pairs_featured}
   defp parse_command("/list"), do: {:ok, :list_pairs}
@@ -64,37 +66,35 @@ defmodule KujibotWeb.TelegramController do
   defp parse_command(_), do: {:ok, :bad_command}
 
   # Command execution
-  defp execute_command(command, conn, chat_id) do
-    Logger.info(command)
+  # text me be where query parameters are
+  defp execute_command(command, conn, chat_id, text) do
+    IO.inspect(text)
 
     case command do
       :start ->
-        send_welcome_message(conn, chat_id)
+        case Accounts.returning_tg_user?(chat_id) do
+          {:ok, _user} ->
+            # when AuthenticateUser.has_wallet?(chat_id) ->
+            send_main_menu_message(conn, chat_id)
+
+          _ ->
+            send_welcome_message(conn, chat_id)
+        end
 
       :create_wallet_option ->
-        # show commands for making new wallet
-
-        # if no wallet yet, explain this is needed to use the bot
+        # show commands for forging a new wallet
         send_create_wallet_message(conn, chat_id)
 
       :forge_new_wallet ->
-        # this will allow a new wallet to be created
-        # seed phrase stored as new password field in user db?
-        send_forge_new_wallet_message(conn, chat_id)
+        # Encapsulating wallet creation logic
+        forge_wallet(conn, chat_id)
 
       :list_pairs ->
-        # examine text for search and filters or pairs
-        filter = :none
-        send_list_pairs_message(conn, chat_id, filter)
-
-      :list_pairs_featured ->
-        # is this the best way to set a search filter?
-        filter = :featured
-        send_list_pairs_message(conn, chat_id, filter)
+        send_list_pairs_message(conn, chat_id, text)
 
       :summon_menu ->
         # display main menu info and buttons
-        send_summon_menu_message(conn, chat_id)
+        send_main_menu_message(conn, chat_id)
 
       :search ->
         # set up text entry and buttons for search
@@ -110,65 +110,109 @@ defmodule KujibotWeb.TelegramController do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
-      "Hearken, noble traveller, to partake in the grand exchange of Kujira's bustling Dex, thou must first summon a wallet to be forged within the vaults for thy bags. This enchanted repository shall hold thy treasures safe and serve as thy sceptre, commanding the flows of commerce at thy whim. Venture forth to the vaults and let the forging begin!"
+      "Hearken, noble traveller, in order to partake in Kujira's bustling FIN exchange, thou must first summon a wallet to be forged within the vaults for thy bags."
 
-    keyboard = [[%{text: "Create Wallet"}, %{text: "Summon Menu"}]]
+    # until creating wallet works, just use FORGE WALLET to create a user entry for this tg_user (chat_idz)
+    keyboard = [[%{text: "Create Wallet"}, %{text: "FAQ"}]]
 
     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
     send_success_response(conn, text)
   end
-
-  # ... (other command handlers)
 
   def send_create_wallet_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
-    text =
-      "Forging a wallet here will give you the tools needed for questing with bags on Kujira's steed FIN."
+    # BEFORE IMPLEMENTING WALLET CREATION (MAP OF WALLETS BY NAME)
+    # CREATE A USER ACCOUNT FOR THIS TG_USER IN THE NEXT STEP (AGREEING TO FORGE A WALLET)
 
-    keyboard = [[%{text: "🔮 Forge they new Wallet"}, %{text: "📜 List Wallets"}]]
-
-    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-    send_success_response(conn, text)
-  end
-
-  def send_forge_new_wallet_message(conn, chat_id) do
-    bot_token = System.get_env("BOT_TOKEN")
-
-    text =
-      "Your new wallet is ready. Save this seed phrase somewhere safe, we cannot retrieve this for you in the future.
-
-      Make seed phrase copyable here too?"
-
-    keyboard = [[%{text: "🔮 Copy Seed Phrase"}, %{text: "📜 List Wallets"}]]
-
-    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-    send_success_response(conn, text)
-  end
-
-  def send_list_pairs_message(conn, chat_id, filter) do
-    bot_token = System.get_env("BOT_TOKEN")
-
-    case filter do
-      :none ->
+    case Accounts.register_user_by_telegram_id(chat_id) do
+      user ->
+        # tg user hath been registered
         text =
-          "Behold to the heart of bags tradeable on the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
+          "tg user hath been registered"
 
-        keyboard = [[%{text: "🔍 Search"}, %{text: "📜 List Featured"}]]
+        # if already has wallet, offer to create another one
+
+        keyboard = [[%{text: "🔮 Forge they new Wallet"}, %{text: "📜 List Wallets"}]]
+
         TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
         send_success_response(conn, text)
 
-      :featured ->
+      nil ->
+        # if no wallet, explain more about being ready to save the seed phrase that will be displayed, and not to let anyone around you see it
         text =
-          "The Featured bags of the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
+          "Forging a wallet here will give you the tools needed for questing with bags on Kujira's steed FIN."
 
-        keyboard = [[%{text: "🔍 Search"}, %{text: "🏰 Summon Menu"}]]
+        # if already has wallet, offer to create another one
+
+        keyboard = [[%{text: "🔮 Forge they new Wallet"}, %{text: "📜 List Wallets"}]]
+
         TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
-        send_success_response(conn, text)
+        error = :unauthorized
+        send_error_response(conn, error)
     end
   end
 
-  def send_summon_menu_message(conn, chat_id) do
+  defp forge_wallet(conn, chat_id) do
+    # Assuming a function to create a wallet and save the seed phrase
+    # wallet = Wallet.create_for_user(conn.assigns.user)
+
+    # Consider using Ecto for interacting with the database and adding a field for the seed phrase securely
+    text = "Thy new wallet has been forged. Guard thy seed phrase as thou wouldst thy life."
+    keyboard = [[%{text: "🔮 Copy Seed Phrase"}, %{text: "📜 List Wallets"}]]
+
+    TelegramJSON.send_message(System.get_env("BOT_TOKEN"), chat_id, text, keyboard)
+    # ResponseSender.send_success_response(conn, text)
+    send_success_response(conn, text)
+  end
+
+  def send_list_pairs_message(conn, chat_id, text) do
+    bot_token = System.get_env("BOT_TOKEN")
+
+    # Dynamically determining the filter
+    # filter = determine_filter(text)
+
+    # case filter do
+    # match on anything else in the text field
+    # can be a list filter (featured, usk, usdc, all, star) and/or a coin/token
+    # find all trading pairs based on this
+    # or 2 coin/token tickers (denom in the api)
+    # go to trading view for this pair if found
+
+    # list_action set: describes the exact query make for listing denom pair(s)
+    # end
+
+    # case list_action do
+    #  :none ->
+    reply_message =
+      "Behold to the heart of bags tradeable on the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
+
+    keyboard = [[%{text: "🔍 Search"}, %{text: "📜 List Featured"}]]
+    TelegramJSON.send_message(bot_token, chat_id, reply_message, keyboard)
+    send_success_response(conn, text)
+
+    #   :featured ->
+    text =
+      "The Featured bags of the Kujira dex FIN, where all paths converge and from whence all quests may be embarked."
+
+    #     keyboard = [[%{text: "🔍 Search"}, %{text: "🏰 Summon Menu"}]]
+    #     TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+    send_success_response(conn, text)
+    # end
+  end
+
+  # def determine_filter(text) do
+  # filter data is probably going to be in the text field
+  # case text do
+  # match on anything after search
+  # can be a list filter (featured, usk, usdc, all, star) and/or a coin/token
+  # find all trading pairs based on this
+  # or 2 coin/token tickers
+  # go to trading view for this pair if found
+  # end
+  # end
+
+  def send_main_menu_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
@@ -213,7 +257,9 @@ defmodule KujibotWeb.TelegramController do
   defp send_error_response(conn, error) do
     response_message =
       case error do
-        # :unauthorized -> "Unauthorized"
+        :unauthorized ->
+          "Unauthorized"
+
         # :unprocessable_entity -> "Command not recognized or missing chat_id/text"
         :bad_request ->
           "Failed to extract message details"

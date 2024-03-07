@@ -13,23 +13,59 @@ defmodule Kujibot.Accounts do
   @doc """
   Registers or finds a user based on Telegram user ID.
 
+  ## Notes
+
+  I think I need to break this into two functions.
+
   ## Examples
 
       iex> register_or_find_user_by_telegram_id(123456789)
       {:ok, %User{}}
 
   """
-  def register_or_find_user_by_telegram_id(attrs) do
-    case Repo.get_by(User, telegram_user_id: attrs.telegram_user_id) do
+
+  def register_user_by_telegram_id(chat_id) do
+    Repo.get_by(User, telegram_user_id: chat_id)
+    |> case do
       nil ->
-        %User{telegram_user_id: attrs.telegram_user_id}
-        |> User.registration_changeset(attrs)
+        # Since email and hashed_password can now be null, only set what's available.
+        # Ensure you have a default or "placeholder" value for fields that cannot be null
+        # and are not provided at the time of registration.
+        user = %User{
+          telegram_user_id: chat_id
+          # Set other fields as necessary or leave them to be updated later
+        }
+
+        user
         |> Repo.insert()
+        |> handle_insert_result()
 
       user ->
         {:ok, user}
     end
   end
+
+  defp handle_insert_result({:ok, user}), do: {:ok, user}
+
+  defp handle_insert_result({:error, changeset}) do
+    # Handle the error case, possibly logging or wrapping the error in a user-friendly way
+    {:error, changeset}
+  end
+
+  def returning_tg_user?(chat_id) do
+    #  search for user by tg_chat_id
+    case Repo.get_by(User, telegram_user_id: chat_id) do
+      nil ->
+        {:error, :not_found}
+
+      user ->
+        {:ok, user}
+    end
+  end
+
+  # has_wallet?
+  #   search for user if they have wallet(s)
+  #   return wallet(s) if so
 
   @doc """
   Authenticates a user based on Telegram user ID.
