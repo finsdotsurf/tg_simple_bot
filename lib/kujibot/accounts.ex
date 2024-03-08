@@ -73,16 +73,11 @@ defmodule Kujibot.Accounts do
       iex> Kujibot.Accounts.has_wallets?(123456789)
 
   """
-  defmodule Kujibot.Accounts do
-    alias Kujibot.Repo
-    alias Kujibot.Wallet
+  # Checks if a user has any wallets and returns them if so
+  def has_wallets(chat_id) do
+    # check user for current wallet count
 
-    # Checks if a user has any wallets and returns them if so
-    def has_wallets(user_id) do
-      # check user for current wallet count
-
-      # return number of wallets
-    end
+    # return number of wallets
   end
 
   @doc """
@@ -95,24 +90,18 @@ defmodule Kujibot.Accounts do
       iex> Kujibot.Accounts.get_wallets(123456789)
 
   """
-  defmodule Kujibot.Accounts do
-    alias Kujibot.Repo
-    alias Kujibot.Wallet
+  def get_wallets(chat_id) do
+    # check user for current wallet count
 
-    # Checks if a user has any wallets and returns them if so
-    def get_wallets(user_id) do
-      # check user for current wallet count
+    # modify this to search wallets with limit of user_wallet_count
+    wallets = Repo.all(from w in Wallet, where: w.user_id == ^chat_id)
 
-      # modify this to search wallets with limit of user_wallet_count
-      wallets = Repo.all(from w in Wallet, where: w.user_id == ^user_id)
+    case wallets do
+      [] ->
+        {:error, :not_found}
 
-      case wallets do
-        [] ->
-          {:error, :not_found}
-
-        _ ->
-          {:ok, wallets}
-      end
+      _ ->
+        {:ok, wallets}
     end
   end
 
