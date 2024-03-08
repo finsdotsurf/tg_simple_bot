@@ -72,9 +72,11 @@ defmodule KujibotWeb.TelegramController do
 
     case command do
       :start ->
+        # /start returning or new user?
         case Accounts.returning_tg_user?(chat_id) do
           {:ok, _user} ->
-            # when AuthenticateUser.has_wallet?(chat_id) ->
+            # if Kujibot.Accounts.has_wallets?(chat_id)
+            # send to main menu
             send_main_menu_message(conn, chat_id)
 
           _ ->
@@ -122,6 +124,18 @@ defmodule KujibotWeb.TelegramController do
   def send_create_wallet_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
+    text =
+      "Hark! Before thee can embark on quests within Kujira's realm, thou must forge thy wallet. This sacred rite grants thee the power to trade and safeguard thy treasures."
+
+    keyboard = [[%{text: "🔮 Forge thy new Wallet"}, %{text: "📜 List Wallets"}]]
+
+    TelegramJSON.send_message(bot_token, chat_id, text, keyboard)
+    send_success_response(conn, text)
+  end
+
+  def send_create_wallet_messageT(conn, chat_id) do
+    bot_token = System.get_env("BOT_TOKEN")
+
     # BEFORE IMPLEMENTING WALLET CREATION (MAP OF WALLETS BY NAME)
     # CREATE A USER ACCOUNT FOR THIS TG_USER IN THE NEXT STEP (AGREEING TO FORGE A WALLET)
 
@@ -141,7 +155,7 @@ defmodule KujibotWeb.TelegramController do
       nil ->
         # if no wallet, explain more about being ready to save the seed phrase that will be displayed, and not to let anyone around you see it
         text =
-          "Forging a wallet here will give you the tools needed for questing with bags on Kujira's steed FIN."
+          "Hark! Before thee can embark on quests within Kujira's realm, thou must forge thy wallet. This sacred rite grants thee the power to trade and safeguard thy treasures."
 
         # if already has wallet, offer to create another one
 
