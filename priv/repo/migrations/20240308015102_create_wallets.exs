@@ -3,7 +3,7 @@ defmodule Kujibot.Repo.Migrations.CreateWallets do
 
   def change do
     create table(:wallets) do
-      add :user_id, references(:users, on_delete: :nullify), null: true
+      add :user_id, references(:users, on_delete: :nilify_all), null: true
       add :wallet_name, :string, null: false
       # Storing the hash, not the actual password
       add :password_hash, :string, null: false

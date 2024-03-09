@@ -1,11 +1,9 @@
 defmodule Kujibot.Telegram.AuthenticateUser do
-  import Plug.Conn
-
-  alias Kujibot.Repo
-  alias Kujibot.User
+  # feels like this module needs a better name, authenticate telegram messages?
 
   @doc """
   Verifies the Telegram message against the secret token.
+
   """
   def verify_tg_message(conn) do
     received_token = get_received_token(conn)

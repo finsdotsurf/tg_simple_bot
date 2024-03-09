@@ -5,20 +5,45 @@ defmodule Kujibot.Accounts do
 
   import Ecto.Query, warn: false
   alias Kujibot.Repo
-  alias Kujibot.Accounts.{User, UserToken, UserNotifier}
-  # alias Kujibot.Wallets
+  alias Kujibot.Accounts.{User, UserToken, UserNotifier, Wallet}
+
+  require Logger
 
   ## Database getters
 
   @doc """
-  Registers or finds a user based on Telegram user ID.
-
+  # Finds or creates a user based on their telegram chat_id
   ## Notes
+  """
+  def find_or_create_tg_user(chat_id) do
+    case Repo.get_by(User, telegram_user_id: chat_id) do
+      nil ->
+        # Assuming you have a changeset function for creating a user
+        # Adjust according to your specific user creation needs
+        case create_tg_user(chat_id) do
+          {:ok, user} -> {:ok, user}
+          {:error, reason} -> {:error, reason}
+        end
 
+      user ->
+        {:ok, user}
+    end
+  end
+
+  @doc """
+  Creates a new user record with a given Telegram chat ID.
+  """
+  def create_tg_user(chat_id) do
+    %User{}
+    |> User.tg_user_changeset(%{telegram_user_id: chat_id})
+    |> Repo.insert()
+  end
+
+  @doc """
+  Registers or finds a user based on Telegram user ID.
+  ## Notes
   I think I need to break this into two functions.
-
   ## Examples
-
       iex> register_or_find_user_by_telegram_id(123456789)
       {:ok, %User{}}
 
@@ -45,6 +70,27 @@ defmodule Kujibot.Accounts do
     end
   end
 
+  @doc """
+  Gets a user based on their Telegram chat_id.
+
+  ## Examples
+
+      iex> MyApp.Accounts.get_tg_user(12345)
+      {:ok, %User{}}
+
+      iex> MyApp.Accounts.get_tg_user(-1)
+      {:error, "User not found"}
+  """
+  def get_tg_user(chat_id) do
+    case Repo.get_by(User, telegram_user_id: chat_id) do
+      nil ->
+        {:error, "User not found"}
+
+      user ->
+        {:ok, user}
+    end
+  end
+
   defp handle_insert_result({:ok, user}), do: {:ok, user}
 
   defp handle_insert_result({:error, changeset}) do
@@ -52,56 +98,105 @@ defmodule Kujibot.Accounts do
     {:error, changeset}
   end
 
-  def returning_tg_user?(chat_id) do
-    #  search for user by tg_chat_id
-    case Repo.get_by(User, telegram_user_id: chat_id) do
-      nil ->
-        {:error, :not_found}
+  #
+  # THIS MAY BE HANDY IF WE DEVISE A CALLBACK SYSTEM WITH ENCRYPTED TOKEN DATA FOR AUTO-AUTH
+  # INSTEAD OF NEEDING TO LOOK USER UP ON DB
+  #
+  # def returning_tg_user?(chat_id) do
+  #   #  search for user by tg_chat_id
+  #   case Repo.get_by(User, telegram_user_id: chat_id) do
+  #     nil ->
+  #       {:error, :not_found}
 
-      user ->
-        {:ok, user}
-    end
-  end
+  #     user ->
+  #       {:ok, user}
+  #   end
+  # end
 
-  @doc """
-  Checks user object by tg id, for counter indicating if any wallets are linked
-
-  ## Notes
-
-  ## Examples
-
-      iex> Kujibot.Accounts.has_wallets?(123456789)
-
-  """
-  # Checks if a user has any wallets and returns them if so
-  def has_wallets(chat_id) do
-    # check user for current wallet count
-
-    # return number of wallets
-  end
+  # *********************************** WALLETS ***********************************
 
   @doc """
-  Gets all wallets are linked to this user, based on Telegram user ID.
+  create_wallet_for_user
+    * Creates a wallet, updates the user's wallets_count, and sets the new wallet as the default if necessary, all within a single transactional context.
 
-  ## Notes
-
-  ## Examples
-
-      iex> Kujibot.Accounts.get_wallets(123456789)
-
+    • Transaction Safety: This approach ensures that all operations within the Multi are transaction-safe. If any step fails, the entire transaction is rolled back, preventing partial updates.
+    • Error Handling: Ecto.Multi provides clearer mechanisms for handling errors at each step of the transaction. You can pattern match on the result of Repo.transaction/1 to handle successes and failures accordingly.
+    • Optimization: This method consolidates user updates into potentially a single operation, reducing the database load.
+    • Ecto.Multi.new(): Corrects the module reference to Ecto.Multi.
+    • Chaining Operations: Uses Ecto.Multi.insert, Ecto.Multi.update, and Ecto.Multi.run to chain the wallet creation, user update, and conditional default wallet assignment.
+    • Handling Results: Includes a handle_transaction_result/1 private function to demonstrate how you might handle the results of the transaction. This function could be tailored to suit how your application needs to respond to success or failure.
+    • Conditional Logic in Multi.run: Uses Ecto.Multi.run to conditionally update the default wallet only if necessary. This step is wrapped in a function that checks if the wallet was successfully created and if the user does not already have a default wallet.
   """
-  def get_wallets(chat_id) do
-    # check user for current wallet count
 
-    # modify this to search wallets with limit of user_wallet_count
-    wallets = Repo.all(from w in Wallet, where: w.user_id == ^chat_id)
+  def create_wallet_for_user(user, wallet_params) do
+    Logger.debug("Inside create_wallet_for_user. wallet_params: #{inspect(wallet_params)}")
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(
+      :wallet,
+      Wallet.changeset(%Wallet{}, Map.put(wallet_params, :user_id, user.id))
+    )
+    |> Ecto.Multi.update(
+      :update_user,
+      User.wallet_update_changeset(user, %{wallets_count: user.wallets_count + 1})
+    )
+    |> Ecto.Multi.run(:set_default_wallet, fn _, changes ->
+      Logger.debug("Inside Ecto.Multi.run for :set_default_wallet. Changes: #{inspect(changes)}")
+
+      case Map.get(changes, :wallet) do
+        nil ->
+          Logger.error("Expected :wallet in changes, but was nil. This should not happen.")
+          {:error, :failed_to_create_wallet}
+
+        wallet ->
+          if is_nil(user.default_wallet_id) do
+            Logger.debug("Setting default wallet as no default wallet is set for the user.")
+
+            {:ok,
+             Repo.update!(User.wallet_update_changeset(user, %{default_wallet_id: wallet.id}))}
+          else
+            Logger.debug("User already has a default wallet. Skipping setting default wallet.")
+            {:ok, user}
+          end
+      end
+    end)
+    |> Repo.transaction()
+    |> handle_transaction_result()
+  end
+
+  defp handle_transaction_result({:ok, changes}) do
+    Logger.debug("Transaction succeeded: #{inspect(changes)}")
+    {:ok, changes.wallet}
+  end
+
+  defp handle_transaction_result({:error, :failed_to_create_wallet}) do
+    Logger.error("Wallet creation failed")
+    {:error, :failed_to_create_wallet}
+  end
+
+  defp handle_transaction_result({:error, _step, reason, _changes}) do
+    Logger.error("Transaction failed at step #{inspect(_step)}: #{inspect(reason)}")
+    {:error, reason}
+  end
+
+  def list_user_wallets(user) do
+    Repo.all(from w in Wallet, where: w.user_id == ^user.id)
+  end
+
+  def get_wallet(user, wallet_id) do
+    Repo.get_by(Wallet, user_id: user.id, id: wallet_id)
+  end
+
+  def has_wallets?(user) do
+    user.wallets_count > 0
+  end
+
+  def get_wallets(user) do
+    wallets = Repo.all(from w in Wallet, where: w.user_id == ^user.id)
 
     case wallets do
-      [] ->
-        {:error, :not_found}
-
-      _ ->
-        {:ok, wallets}
+      [] -> {:error, :not_found}
+      _ -> {:ok, wallets}
     end
   end
 
