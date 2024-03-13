@@ -85,6 +85,12 @@ defmodule KujibotWeb.TelegramCommandExecutor do
   def send_welcome_message(conn, user) do
     bot_token = System.get_env("BOT_TOKEN")
 
+    # this welcome message can be worded differently if the visiting user already has a wallet
+
+    # this state can be to view all current wallets while choosing a name for the next one you want to make (limit wallet #)
+
+    # list_user_wallets(user) will return all wallets for this user,
+    # can I create a way to validate on this list of names when the user sends their next wallet name choice back here in the next message?
     text =
       "Hearken, noble traveller, in order to partake in Kujira's bustling FIN exchange, thou must first summon a wallet to be forged within the vaults for thy bags."
 

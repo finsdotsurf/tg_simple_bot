@@ -25,6 +25,8 @@ defmodule KujibotWeb.ResponseHelper do
           "Failed to create wallet."
       end
 
+    # because we're exchanging messages via our TG bot, we send :ok in order to keep the conversation alive
+    # only send put_status(:error) if we need to break the connection with that TG user of our bot
     conn
     |> put_status(:ok)
     |> json(%{message: response_message})
