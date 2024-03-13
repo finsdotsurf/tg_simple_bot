@@ -14,6 +14,7 @@ defmodule Kujibot.Application do
       {Phoenix.PubSub, name: Kujibot.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Kujibot.Finch},
+      {Oban, Application.fetch_env!(:kujibot, Oban)},
       # Start a worker by calling: Kujibot.Worker.start_link(arg)
       # {Kujibot.Worker, arg},
       # Start to serve requests, typically the last entry

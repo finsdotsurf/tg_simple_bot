@@ -23,6 +23,8 @@ config :kujibot, KujibotWeb.Endpoint,
   secret_key_base: "FNcZE7zRscJXyZbZhzVKn43aCXz1E21SIkqvkEJBCOkfC3IzKZputjcEk8jg0Ek2",
   server: false
 
+config :kujibot, Oban, testing: :inline
+
 # In test we don't send emails.
 config :kujibot, Kujibot.Mailer, adapter: Swoosh.Adapters.Test
 

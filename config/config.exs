@@ -26,6 +26,11 @@ config :kujibot, KujibotWeb.Endpoint,
 # for making outbound HTTP requests from the server.
 config :tesla, adapter: Tesla.Adapter.Hackney
 
+# Oban base configuration
+config :kujibot, Oban,
+  repo: Kujibot.Repo,
+  queues: [default: 10]
+
 # Configures the mailer
 #
 # By default it uses the "Local" adapter which stores the emails
