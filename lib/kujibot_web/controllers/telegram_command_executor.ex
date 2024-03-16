@@ -47,9 +47,9 @@ defmodule KujibotWeb.TelegramCommandExecutor do
             ResponseHelper.send_error_response(conn, :unprocessable_entity)
         end
 
-      :create_wallet_option ->
+      :set_up_wallet ->
         # If the user doesn't have a wallet we should arrive here
-        send_create_wallet_message(conn, chat_id)
+        send_setup_wallet_message(conn, chat_id)
 
       :forge_new_wallet ->
         # expecting a user on this step
@@ -85,17 +85,13 @@ defmodule KujibotWeb.TelegramCommandExecutor do
   def send_welcome_message(conn, user) do
     bot_token = System.get_env("BOT_TOKEN")
 
-    # this welcome message can be worded differently if the visiting user already has a wallet
+    # this welcome message is arrived at when a user doesn't yet have a wallet to use on the bot
 
-    # this state can be to view all current wallets while choosing a name for the next one you want to make (limit wallet #)
-
-    # list_user_wallets(user) will return all wallets for this user,
-    # can I create a way to validate on this list of names when the user sends their next wallet name choice back here in the next message?
     text =
       "Hearken, noble traveller, in order to partake in Kujira's bustling FIN exchange, thou must first summon a wallet to be forged within the vaults for thy bags."
 
     # until creating wallet works, just use FORGE WALLET to create a user entry for this tg_user (chat_idz)
-    keyboard = [[%{text: "Create Wallet"}, %{text: "FAQ"}]]
+    keyboard = [[%{text: "Set up wallet"}, %{text: "FAQ"}]]
 
     TelegramJSON.send_message(bot_token, user.telegram_user_id, text, keyboard)
     ResponseHelper.send_success_response(conn, text)
@@ -116,11 +112,11 @@ defmodule KujibotWeb.TelegramCommandExecutor do
     ResponseHelper.send_success_response(conn, text)
   end
 
-  def send_create_wallet_message(conn, chat_id) do
+  def send_setup_wallet_message(conn, chat_id) do
     bot_token = System.get_env("BOT_TOKEN")
 
     text =
-      "Hark! Before thee can embark on quests within Kujira's realm, thou must forge thy wallet. This sacred rite grants thee the power to trade and safeguard thy treasures."
+      "ASK FOR WALLET NAME HERE, LIST ANY CRURENT WALLETS PREVENT DUPLICATE NAMES. Hark! Before thee can embark on quests within Kujira's realm, thou must forge thy wallet. This sacred rite grants thee the power to trade and safeguard thy treasures."
 
     keyboard = [[%{text: "🔮 Forge thy new Wallet"}, %{text: "📜 List Wallets"}]]
 

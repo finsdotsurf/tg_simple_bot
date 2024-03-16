@@ -26,10 +26,11 @@ config :kujibot, KujibotWeb.Endpoint,
 # for making outbound HTTP requests from the server.
 config :tesla, adapter: Tesla.Adapter.Hackney
 
-# Oban base configuration
+# Oban base configuration, keep completed, cancelled or discarded jobs for 12 hours
 config :kujibot, Oban,
   repo: Kujibot.Repo,
-  queues: [default: 10]
+  queues: [default: 10, wallets: 20],
+  plugins: [{Oban.Plugins.Pruner, max_age: 43_200}]
 
 # Configures the mailer
 #

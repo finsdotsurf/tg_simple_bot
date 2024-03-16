@@ -12,9 +12,9 @@ defmodule Kujibot.Telegram.AuthenticateUser do
     received_token == secret_token
   end
 
-  @doc """
-  Extracts the 'x-telegram-bot-api-secret-token' header from the connection.
-  """
+  #
+  # Extracts the 'x-telegram-bot-api-secret-token' header from the connection.
+  #
   defp get_received_token(conn) do
     Plug.Conn.get_req_header(conn, "x-telegram-bot-api-secret-token")
     |> List.first()

@@ -1,7 +1,6 @@
 defmodule KujibotWeb.TelegramCommandParser do
-  def parse_command("/create"), do: {:ok, :create_wallet_option}
-  def parse_command("/create-wallet"), do: {:ok, :create_wallet_option}
-  def parse_command("Create Wallet"), do: {:ok, :create_wallet_option}
+  def parse_command("/setup-w"), do: {:ok, :set_up_wallet}
+  def parse_command("Set up wallet"), do: {:ok, :set_up_wallet}
   def parse_command("🔮 Forge thy new Wallet"), do: {:ok, :forge_new_wallet}
   def parse_command("/list"), do: {:ok, :list_pairs}
   def parse_command("📜 List Pairs"), do: {:ok, :list_pairs}
