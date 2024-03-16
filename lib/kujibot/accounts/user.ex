@@ -7,11 +7,7 @@ defmodule Kujibot.Accounts.User do
     field :telegram_user_id, :integer
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
-    field :wallets_count, :integer, default: 0
-
-    belongs_to :default_wallet, Kujibot.Accounts.Wallet,
-      foreign_key: :default_wallet_id,
-      type: :id
+    field :wallet_password_hash, :string, redact: true
 
     field :confirmed_at, :naive_datetime
 
@@ -31,43 +27,21 @@ defmodule Kujibot.Accounts.User do
   end
 
   @doc """
-  Updates the user's wallet count and optionally sets the default wallet.
+  Updates the user's wallet hash
 
   ## Parameters
 
   - `user`: The User schema struct.
-  - `attrs`: The attributes to update, which may include `wallets_count` and optionally `default_wallet_id`.
+  - `attrs`: The attributes to update
   """
 
   @spec wallet_update_changeset(Ecto.Schema.t(), map()) :: Ecto.Changeset.t()
   def wallet_update_changeset(user, attrs) do
     user
-    |> cast(attrs, [:wallets_count, :default_wallet_id])
-    |> validate_required([:wallets_count])
-    |> maybe_set_default_wallet(attrs)
-    |> foreign_key_constraint(:default_wallet_id)
-  end
+    |> Ecto.Changeset.cast(attrs, [:wallet_password_hash])
+    |> Ecto.Changeset.validate_required([:wallet_password_hash])
 
-  # demonstrates how you could conditionally add further validations or transformations
-  # based on whether default_wallet_id is included in the attributes.
-  defp maybe_set_default_wallet(changeset, attrs) do
-    case Map.get(attrs, :default_wallet_id) do
-      # If default_wallet_id is not provided, return the changeset as-is
-      nil ->
-        changeset
-
-      _default_wallet_id ->
-        validate_change(changeset, :default_wallet_id, &validate_default_wallet/2)
-    end
-  end
-
-  defp validate_default_wallet(_default_wallet_id, _changeset) do
-    # Example validation logic
-    # This is where you could check if the default_wallet_id is valid,
-    # such as ensuring the wallet exists and belongs to the user.
-    # If the validation fails, return an error tuple list.
-    # For demonstration, assuming validation passes, so we return an empty list.
-    []
+    # Add any additional validations here if needed
   end
 
   @doc """

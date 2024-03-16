@@ -21,7 +21,7 @@ defmodule KujibotWeb.TelegramCommandExecutor do
       :start ->
         case Accounts.find_or_create_tg_user(chat_id) do
           {:ok, user} ->
-            if Accounts.has_wallets?(user) do
+            if Accounts.has_wallet?(user) do
               send_main_menu_message(conn, user)
             else
               send_welcome_message(conn, user)
@@ -141,13 +141,7 @@ defmodule KujibotWeb.TelegramCommandExecutor do
   end
 
   defp create_and_respond_with_wallet(conn, user, chat_id) do
-    hashed_password = "123456789"
-
-    Logger.debug("Hashed password successfully.")
-    # Example wallet_params with a wallet_name included
-    wallet_params = %{password_hash: hashed_password, wallet_name: "ToddsWallet"}
-
-    case Accounts.create_wallet_for_user(user, wallet_params) do
+    case Accounts.create_wallet_for_user(user) do
       {:ok, _wallet} ->
         text =
           "Thy new wallet has been forged. Guard thy seed phrase as thou wouldst thy life."

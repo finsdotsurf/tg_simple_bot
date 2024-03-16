@@ -116,88 +116,40 @@ defmodule Kujibot.Accounts do
   # *********************************** WALLETS ***********************************
 
   @doc """
-  create_wallet_for_user
-    * Creates a wallet, updates the user's wallets_count, and sets the new wallet as the default if necessary, all within a single transactional context.
 
-    • Transaction Safety: This approach ensures that all operations within the Multi are transaction-safe. If any step fails, the entire transaction is rolled back, preventing partial updates.
-    • Error Handling: Ecto.Multi provides clearer mechanisms for handling errors at each step of the transaction. You can pattern match on the result of Repo.transaction/1 to handle successes and failures accordingly.
-    • Optimization: This method consolidates user updates into potentially a single operation, reducing the database load.
-    • Ecto.Multi.new(): Corrects the module reference to Ecto.Multi.
-    • Chaining Operations: Uses Ecto.Multi.insert, Ecto.Multi.update, and Ecto.Multi.run to chain the wallet creation, user update, and conditional default wallet assignment.
-    • Handling Results: Includes a handle_transaction_result/1 private function to demonstrate how you might handle the results of the transaction. This function could be tailored to suit how your application needs to respond to success or failure.
-    • Conditional Logic in Multi.run: Uses Ecto.Multi.run to conditionally update the default wallet only if necessary. This step is wrapped in a function that checks if the wallet was successfully created and if the user does not already have a default wallet.
   """
 
-  def create_wallet_for_user(user, wallet_params) do
-    Logger.debug("Inside create_wallet_for_user. wallet_params: #{inspect(wallet_params)}")
+  def create_wallet_for_user(user) do
+    Logger.debug("Inside create_wallet_for_user.")
 
-    Ecto.Multi.new()
-    |> Ecto.Multi.insert(
-      :wallet,
-      Wallet.changeset(%Wallet{}, Map.put(wallet_params, :user_id, user.id))
-    )
-    |> Ecto.Multi.update(
-      :update_user,
-      User.wallet_update_changeset(user, %{wallets_count: user.wallets_count + 1})
-    )
-    |> Ecto.Multi.run(:set_default_wallet, fn _, changes ->
-      Logger.debug("Inside Ecto.Multi.run for :set_default_wallet. Changes: #{inspect(changes)}")
+    # This is where state management will be first used.
+    # Waiting on confirm of successful wallet creation,
+    # and storing the seed phrase safely.
 
-      case Map.get(changes, :wallet) do
-        nil ->
-          Logger.error("Expected :wallet in changes, but was nil. This should not happen.")
-          {:error, :failed_to_create_wallet}
+    # Only create a wallet if this user doesn't have one yet.
+    if is_nil(user.wallet_password_hash) do
+      updated_wallet_info = %{
+        wallet_password_hash: "8675309"
+      }
 
-        wallet ->
-          if is_nil(user.default_wallet_id) do
-            Logger.debug("Setting default wallet as no default wallet is set for the user.")
+      case Repo.update(User.wallet_update_changeset(user, updated_wallet_info)) do
+        {:ok, updated_user} ->
+          Logger.debug("Wallet information updated successfully for user.")
+          {:ok, updated_user}
 
-            {:ok,
-             Repo.update!(User.wallet_update_changeset(user, %{default_wallet_id: wallet.id}))}
-          else
-            Logger.debug("User already has a default wallet. Skipping setting default wallet.")
-            {:ok, user}
-          end
+        {:error, changeset} ->
+          Logger.error("Failed to update wallet information for user. #{inspect(changeset)}")
+          {:error, :failed_to_update_wallet}
       end
-    end)
-    |> Repo.transaction()
-    |> handle_transaction_result()
-  end
-
-  defp handle_transaction_result({:ok, changes}) do
-    Logger.debug("Transaction succeeded: #{inspect(changes)}")
-    {:ok, changes.wallet}
-  end
-
-  defp handle_transaction_result({:error, :failed_to_create_wallet}) do
-    Logger.error("Wallet creation failed")
-    {:error, :failed_to_create_wallet}
-  end
-
-  defp handle_transaction_result({:error, _step, reason, _changes}) do
-    Logger.error("Transaction failed at step #{inspect(_step)}: #{inspect(reason)}")
-    {:error, reason}
-  end
-
-  def list_user_wallets(user) do
-    Repo.all(from w in Wallet, where: w.user_id == ^user.id)
-  end
-
-  def get_wallet(user, wallet_id) do
-    Repo.get_by(Wallet, user_id: user.id, id: wallet_id)
-  end
-
-  def has_wallets?(user) do
-    user.wallets_count > 0
-  end
-
-  def get_wallets(user) do
-    wallets = Repo.all(from w in Wallet, where: w.user_id == ^user.id)
-
-    case wallets do
-      [] -> {:error, :not_found}
-      _ -> {:ok, wallets}
+    else
+      Logger.debug("User already has a wallet. No update performed.")
+      # Return the unchanged user record
+      {:ok, user}
     end
+  end
+
+  def has_wallet?(user) do
+    user.wallet_password_hash != nil
   end
 
   @doc """
